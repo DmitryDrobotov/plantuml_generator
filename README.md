@@ -98,3 +98,4 @@ entity "jira_sprints" as jira_sprints {
 @enduml
 ```
 
+![Example](/example.png)
