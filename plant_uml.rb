@@ -22,6 +22,11 @@ class Table
     @columns = []
   end
 
+  def add_foreign_key(column_name)
+    column = columns.detect { |column| column.name == column_name.to_sym }
+    column ? column.foreign_key = true : false
+  end
+
   def method_missing(m, *args, &block)
     column_type = m
 
@@ -43,11 +48,24 @@ PLANTUML
   end
 end
 
+class Relation
+  attr_accessor :from_table, :to_table
+
+  def initialize(from_table, to_table)
+    @from_table = from_table.to_sym
+    @to_table = to_table.to_sym
+  end
+
+  def to_plantuml
+    "#{to_table} --|{ #{from_table}"
+  end
+end
+
 module ActiveRecord
   class Schema
     include Singleton
 
-    attr_accessor :tables
+    attr_accessor :tables, :relations
 
     def self.define(info = {}, &block)
       instance.define(info, &block)
@@ -64,15 +82,13 @@ module ActiveRecord
     end
 
     def add_foreign_key(from_table, to_table, **options)
-      table = tables.detect { |table| table.name == from_table.to_sym }
-      search_column = (options[:column] && options[:column].to_sym) || "#{to_table[0...-1]}_id".to_sym
-      column = table.columns.detect { |column| column.name == search_column }
+      relations << Relation.new(from_table, to_table)
 
-      if column
-        column.foreign_key = true
-      else
-        puts "WARN: Unable to find foreign key #add_foreign_key(#{from_table}, #{to_table}, #{options})"
-      end
+      table = tables.detect { |table| table.name == from_table.to_sym }
+      column_name = options[:column] || "#{to_table[0...-1]}_id"
+
+      table.add_foreign_key(column_name) ||
+        puts("WARN: Unable to add foreign key: #{from_table}, #{to_table}, #{options}")
     end
 
     def method_missing(m, *args, &block)
@@ -86,7 +102,9 @@ module ActiveRecord
 hide circle
 skinparam linetype ortho
 
-#{tables.map(&:to_plantuml).join("\n\n")}
+#{tables.map(&:to_plantuml).join("\n")}
+
+#{relations.map(&:to_plantuml).join("\n")}
 
 @enduml
 PLANTUML
@@ -96,6 +114,7 @@ PLANTUML
 
     def initialize
       @tables = []
+      @relations = []
     end
   end
 end
