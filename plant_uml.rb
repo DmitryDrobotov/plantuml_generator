@@ -70,10 +70,10 @@ class Relation
   end
 
   def to_plantuml
-    line = "-" * (rand(2) + 2)
-    direction = [true, false].sample ? "#{line}|{" : "}|#{line}"
+    relation_sign = [true, false].sample ? "--|{" : "}|--"
+    foreign_key_label = options[:column].present? ? " : #{foreign_key}" : ""
 
-    "#{to_table} #{direction} #{from_table} : #{foreign_key}"
+    "#{to_table} #{relation_sign} #{from_table}#{foreign_key_label}"
   end
 end
 
@@ -100,7 +100,7 @@ module ActiveRecord
     end
 
     def add_foreign_key(from_table, to_table, **options)
-      return if !include_table?(from_table) || !include_table?(to_table)
+      return if !include_table?(from_table) && !include_table?(to_table)
 
       relations << Relation.new(from_table, to_table, options)
     end
