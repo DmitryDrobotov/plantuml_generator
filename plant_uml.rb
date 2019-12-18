@@ -1,40 +1,48 @@
 require 'singleton'
+require 'active_support/core_ext/string'
 
 class Column
-  attr_accessor :name, :type, :foreign_key
+  FOREIGN_KEY_MATCHERS = %w(_id _type).freeze
 
-  def initialize(name, type)
-    @name = name.to_sym
+  attr_accessor :type, :name, :options
+
+  def initialize(type, name, **options)
     @type = type.to_sym
-    @foreign_key = false
+    @name = name
+    @options = options
+  end
+
+  def foreign_key?
+    FOREIGN_KEY_MATCHERS.any? do |relation_matcher|
+      name.to_s.end_with?(relation_matcher)
+    end
   end
 
   def to_plantuml
-    "#{'*' if foreign_key}#{name} : #{type}"
+    foreign_key_mark = foreign_key? ? '*' : ''
+
+    "#{foreign_key_mark}#{name} : #{type}"
   end
 end
 
 class Table
-  attr_accessor :name, :columns
+  SKIP_COLUMN_TYPES = %i[index]
 
-  def initialize(name)
+  attr_accessor :name, :options
+  attr_accessor :columns
+
+  def initialize(name, **options)
     @name = name.to_sym
+    @options = options
     @columns = []
   end
 
-  def add_foreign_key(column_name)
-    column = columns.detect { |column| column.name == column_name.to_sym }
-    column ? column.foreign_key = true : false
-  end
-
-  def method_missing(m, *args, &block)
-    column_type = m
-
+  def method_missing(column_type, *args, &block)
     # exclude next methods on table definition
-    return if %i[index].include?(column_type)
+    return if SKIP_COLUMN_TYPES.include?(column_type)
 
-    column_name = args[0]
-    columns << Column.new(column_name, column_type)
+    column_name = args.shift
+    columns << Column.new(column_type, column_name, *args)
   end
 
   def to_plantuml
@@ -49,15 +57,23 @@ PLANTUML
 end
 
 class Relation
-  attr_accessor :from_table, :to_table
+  attr_accessor :from_table, :to_table, :options
 
-  def initialize(from_table, to_table)
+  def initialize(from_table, to_table, **options)
     @from_table = from_table.to_sym
     @to_table = to_table.to_sym
+    @options = options
+  end
+
+  def foreign_key
+    options[:column].presence || "#{to_table.to_s.singularize}_id"
   end
 
   def to_plantuml
-    "#{to_table} --|{ #{from_table}"
+    line = "-" * (rand(2) + 2)
+    direction = [true false].sample ? "#{line}|{" : "}|#{line}"
+
+    "#{to_table} #{direction} #{from_table} : #{foreign_key}"
   end
 end
 
@@ -75,20 +91,14 @@ module ActiveRecord
       instance_eval(&block)
     end
 
-    def create_table(name, opts = {})
-      table = Table.new(name)
+    def create_table(name, **options)
+      table = Table.new(name, options)
       yield(table)
       tables << table
     end
 
     def add_foreign_key(from_table, to_table, **options)
-      relations << Relation.new(from_table, to_table)
-
-      table = tables.detect { |table| table.name == from_table.to_sym }
-      column_name = options[:column] || "#{to_table[0...-1]}_id"
-
-      table.add_foreign_key(column_name) ||
-        puts("WARN: Unable to add foreign key: #{from_table}, #{to_table}, #{options}")
+      relations << Relation.new(from_table, to_table, options)
     end
 
     def method_missing(m, *args, &block)
