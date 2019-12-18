@@ -71,7 +71,7 @@ class Relation
 
   def to_plantuml
     line = "-" * (rand(2) + 2)
-    direction = [true false].sample ? "#{line}|{" : "}|#{line}"
+    direction = [true, false].sample ? "#{line}|{" : "}|#{line}"
 
     "#{to_table} #{direction} #{from_table} : #{foreign_key}"
   end
@@ -92,17 +92,27 @@ module ActiveRecord
     end
 
     def create_table(name, **options)
+      return unless include_table?(name)
+
       table = Table.new(name, options)
       yield(table)
       tables << table
     end
 
     def add_foreign_key(from_table, to_table, **options)
+      return if !include_table?(from_table) || !include_table?(to_table)
+
       relations << Relation.new(from_table, to_table, options)
     end
 
     def method_missing(m, *args, &block)
       puts "WARN: Missing definition ##{m}(#{args})"
+    end
+
+    def include_table?(table_name)
+      return true if ARGV[1..-1].none?
+
+      ARGV[1..-1].include?(table_name.to_s)
     end
 
     def to_plantuml
@@ -130,7 +140,7 @@ PLANTUML
 end
 
 if ARGV[0].nil?
-  puts "Usage: ruby plant_uml.rb /path/to/schema.rb"
+  puts "Usage: ruby plant_uml.rb /path/to/schema.rb [table1] [table2] ..."
 else
   load ARGV[0]
   puts ActiveRecord::Schema.instance.to_plantuml

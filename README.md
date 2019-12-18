@@ -3,7 +3,13 @@ Generates simple plantUML Entity Relationship Diagram based on schema.rb file
 
 #### Usage:
 ```
-ruby plant_uml.rb /path/to/schema.rb
+bundle install
+
+bundle exec ruby plant_uml.rb /path/to/schema.rb # for full schema scan
+
+# or
+
+bundle exec ruby plant_uml.rb /path/to/schema.rb jira_boards jira_connections # for partial scan
 ```
 
 #### Example of `schema.rb`:
