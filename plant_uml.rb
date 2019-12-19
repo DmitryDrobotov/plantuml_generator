@@ -70,10 +70,14 @@ class Relation
   end
 
   def to_plantuml
-    relation_sign = [true, false].sample ? "--|{" : "}|--"
     foreign_key_label = options[:column].present? ? " : #{foreign_key}" : ""
 
-    "#{to_table} #{relation_sign} #{from_table}#{foreign_key_label}"
+    relation_direction = [:down, :up].sample
+
+    case relation_direction
+    when :up then "#{from_table} }|--#{'-' * rand(2))} #{to_table}#{foreign_key_label}"
+    when :down then "#{to_table} #{'-' * rand(2)}--|{ #{from_table}#{foreign_key_label}"
+    end
   end
 end
 
