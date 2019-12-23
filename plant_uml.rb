@@ -75,7 +75,7 @@ class Relation
     relation_direction = [:down, :up].sample
 
     case relation_direction
-    when :up then "#{from_table} }|--#{'-' * rand(2))} #{to_table}#{foreign_key_label}"
+    when :up then "#{from_table} }|--#{'-' * rand(2)} #{to_table}#{foreign_key_label}"
     when :down then "#{to_table} #{'-' * rand(2)}--|{ #{from_table}#{foreign_key_label}"
     end
   end
